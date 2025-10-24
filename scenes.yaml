@@ -1,0 +1,75 @@
+- id: '1752568357588'
+  name: Alle Lampen aus
+  entities:
+    light.hue_color_lamp_1:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - 'off'
+      - candle
+      - fire
+      - prism
+      - sparkle
+      - opal
+      - glisten
+      - underwater
+      - cosmos
+      - sunbeam
+      - enchant
+      - sunrise
+      - sunset
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect:
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      mode: normal
+      dynamics: none
+      friendly_name: Hue color lamp 1
+      supported_features: 44
+      state: 'off'
+    light.hue_color_lamp_2:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - 'off'
+      - candle
+      - fire
+      - prism
+      - sparkle
+      - opal
+      - glisten
+      - underwater
+      - cosmos
+      - sunbeam
+      - enchant
+      - sunrise
+      - sunset
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect:
+      color_mode:
+      brightness:
+      color_temp_kelvin:
+      color_temp:
+      hs_color:
+      rgb_color:
+      xy_color:
+      mode: normal
+      dynamics: none
+      friendly_name: Hue color lamp 2
+      supported_features: 44
+      state: 'off'
+  icon: mdi:lightbulb-group-off
+  metadata: {}

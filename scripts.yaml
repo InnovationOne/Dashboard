@@ -1,0 +1,122 @@
+
+# ============================================================
+# Sexy Time RGB Script (Original beibehalten)
+# ============================================================
+
+lights_rainbow_30s:
+  alias: Lichter · RGB (schnell) 30s · Restore
+  icon: mdi:heart
+  mode: restart
+  variables:
+    target_group: light.sexy_time # deine Light-Gruppe
+    # 30 s Gesamt = steps * ms_per_step
+    steps: 45 # weniger Steps -> weniger Last
+    ms_per_step: 200 # 150–250 ms ist oft „sweet spot"
+    cycles: 10 # wie oft 360° in 30 s (mehr = schneller)
+    sat_pct: 60
+    bright_pct: 50
+    hue_step: "{{ (360 * cycles / steps) | float }}"
+  sequence:
+    # Mitglieder der Gruppe ermitteln -> farbfähige Lichter für Snapshot/Restore
+    - variables:
+        member_ids_raw: "{{ state_attr(target_group, 'entity_id') or [] }}"
+        lights: >-
+          {{ expand(member_ids_raw)
+            | selectattr('domain','equalto','light')
+            | selectattr('attributes.supported_color_modes','defined')
+            | selectattr('attributes.supported_color_modes','search','hs|xy|rgb')
+            | map(attribute='entity_id') | list }}
+        # Zum Steuern: wenn Gruppe existiert, nutze sie (ein Call), sonst Liste
+        control_entity: >-
+          {{ target_group if target_group in states else lights }}
+
+    - choose:
+        - conditions: "{{ lights | length == 0 }}"
+          sequence:
+            - stop: "Keine farbfähigen Lichter in {{ target_group }} gefunden."
+
+    # Ausgangszustand sichern
+    - service: scene.create
+      data:
+        scene_id: sexy_time_restore
+        snapshot_entities: "{{ lights }}"
+
+    # Schneller RGB-Loop – OHNE transition (direkter Wechsel)
+    - repeat:
+        count: "{{ steps }}"
+        sequence:
+          - variables:
+              hue: "{{ ((repeat.index - 1) * hue_step) % 360 }}"
+
+          - service: light.turn_on
+            data:
+              entity_id: "{{ control_entity }}"
+              hs_color: ["{{ hue | round(0) }}", "{{ sat_pct }}"]
+              brightness_pct: "{{ bright_pct }}"
+
+          - delay:
+              milliseconds: "{{ ms_per_step }}"
+
+    # Ausgangszustand wiederherstellen
+    - service: scene.turn_on
+      target:
+        entity_id: scene.sexy_time_restore
+
+weisslicht_toggle_and_refresh:
+  alias: "Floorplan · Anzeige-Modus umschalten (nur UI)"
+  mode: restart
+  sequence:
+    - service: input_boolean.toggle
+      target:
+        entity_id: input_boolean.floorplan_white_mode
+
+
+floorplan_apply_light_mode_active:
+  alias: "Floorplan · Aktive Lichter an Modus anpassen"
+  mode: parallel
+  sequence:
+    - variables:
+        white_mode: "{{ is_state('input_boolean.floorplan_white_mode','on') }}"
+        lights_on: >
+          {{ expand('light.alle_lichter')
+             | selectattr('state','eq','on')
+             | map(attribute='entity_id')
+             | list }}
+    - repeat:
+        for_each: "{{ lights_on }}"
+        sequence:
+          - service: script.floorplan_apply_light_mode_entity
+            data:
+              target_entity: "{{ repeat.item }}"
+
+floorplan_apply_light_mode_entity:
+  alias: "Floorplan · Einzelnes Licht an Modus anpassen"
+  mode: queued
+  fields:
+    target_entity:
+      description: "Das anzupassende Licht"
+      example: light.wohnzimmer_lampe
+  sequence:
+    - variables:
+        white_mode: "{{ is_state('input_boolean.floorplan_white_mode','on') }}"
+        supports: "{{ state_attr(target_entity, 'supported_color_modes') or [] }}"
+    - choose:
+        - conditions: "{{ white_mode and 'color_temp' in supports }}"
+          sequence:
+            - service: light.turn_on
+              data:
+                entity_id: "{{ target_entity }}"
+                kelvin: 3000           # neutral-warm; passt i.d.R. überall
+        - conditions: "{{ not white_mode and 'hs' in supports }}"
+          sequence:
+            - service: light.turn_on
+              data:
+                entity_id: "{{ target_entity }}"
+                hs_color: [35, 75]     # warme Farbe als Default
+        - conditions: "{{ not white_mode and 'rgb' in supports }}"
+          sequence:
+            - service: light.turn_on
+              data:
+                entity_id: "{{ target_entity }}"
+                rgb_color: [255, 180, 80]
+        # Falls ein Licht weder Farb- noch CCT-Modus hat, machen wir nichts.
