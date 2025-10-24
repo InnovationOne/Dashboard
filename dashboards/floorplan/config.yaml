@@ -1,0 +1,38 @@
+views:
+  - title: Home
+    path: home
+    panel: true
+    theme: ios-glass
+    background: |
+      radial-gradient(circle at 20% 20%, #ff9f0a 0%, #ff375f 35%, #bf5af2 60%, #0a84ff 90%)
+
+    cards:
+      - type: picture-elements
+        image: /local/floorplan/transparent.png
+        card_mod:
+          style: |
+            ha-card {
+              background: transparent !important;
+              box-shadow: none !important;
+              border: none !important;
+              --ha-card-background: transparent !important;
+              --paper-card-background-color: transparent !important;
+            }
+
+        elements:
+          - !include ./elements/clock.yaml
+          - !include ./elements/floorplan.yaml
+          - !include ./elements/left_weather.yaml
+          - !include ./elements/people_row.yaml
+          - !include ./elements/labels/arbeitszimmer.yaml
+          - !include ./elements/labels/esszimmer.yaml
+          - !include ./elements/labels/schlafzimmer.yaml
+          - !include ./elements/right_calendar.yaml
+          # - !include ./elements/right_departures.yaml
+          - !include ./elements/buttons/button_labels.yaml
+          - !include ./elements/buttons/button_sexytime.yaml
+          - !include ./elements/buttons/button_weisslicht.yaml
+          - !include ./elements/buttons/button_all_lights.yaml
+          - !include ./elements/buttons/button_shower.yaml
+          - !include ./elements/buttons/button_sleep_mode.yaml
+          - !include ./elements/buttons/toggle_read_mode.yaml

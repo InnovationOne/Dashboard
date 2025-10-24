@@ -1,0 +1,39 @@
+type: custom:button-card
+style:
+  left: "calc(50% - 480px + 905px)"
+  top: 560px
+  z-index: 3
+  width: "100px"
+  height: "50px"
+show_icon: false
+show_name: false
+show_state: false
+show_label: true
+entity: climate.kuche
+label: >
+  [[[
+    if (states['input_boolean.floorplan_labels']?.state !== 'on') return '';
+    const e = states['climate.kuche'];
+    const t = e?.attributes?.current_temperature;
+    return (t==null) ? '–°C' : (t.toFixed(1).replace('.', ',') + '°C');
+  ]]]
+state:
+  - value: 'heat'
+    styles:
+      label:
+        - color: '#fb923c'
+  - value: 'idle'
+    styles:
+      label:
+        - color: '#f3f3f377'
+styles:
+  card:
+    - padding: 0
+    - background: transparent
+    - border-radius: 0
+    - box-shadow: none
+  label:
+    - font-size: 28px
+    - font-weight: normal
+    - color: "#f3f3f377"
+    - text-shadow: 0 2px 6px rgba(0,0,0,0.55)

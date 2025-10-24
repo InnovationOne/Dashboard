@@ -1,0 +1,225 @@
+type: custom:floorplan-card
+
+style:
+  left: 50%
+  top: 268px
+  transform: translateX(-50%)
+  width: 1100px
+  height: 619px
+  z-index: 1
+
+card_mod:
+  style:
+    ha-card: |
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      overflow: visible;
+    .card-content: |
+      padding: 0 !important;
+    .card-content svg: |
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+
+config:
+  image: /local/floorplan/floorplan.svg
+  stylesheet: /local/floorplan/floorplan.css
+  rules:
+    # 1) Visuals (keine Tap-Definition hier!)
+    - entities:
+        - light.arbeitszimmerlampe
+        - light.schlafzimmerlampe
+        - light.wohnzimmer_lampe
+        - light.kuechenlampe
+        - light.flur_lampe
+        - light.esszimmer_lampe
+        - switch.badezimmerlampe
+      state_action:
+        action: call-service
+        service: floorplan.class_set
+        service_data: 'light-${entity.state}'
+
+    # 2) Bedienung (Toggle, More-Info, Hold)
+    - entities:
+        - light.arbeitszimmerlampe
+        - light.schlafzimmerlampe
+        - light.wohnzimmer_lampe
+        - light.kuechenlampe
+        - light.flur_lampe
+        - light.esszimmer_lampe
+        - switch.badezimmerlampe
+      tap_action:
+        action: call-service
+        service: homeassistant.toggle
+        service_data:
+          entity_id: "${entity.entity_id}"
+      double_tap_action: { action: more-info }
+      hold_action: { action: call-service }
+
+    - entities:
+        - light.arbeitszimmerlampe
+        - light.schlafzimmerlampe
+        - light.wohnzimmer_lampe
+        - light.kuechenlampe
+        - light.flur_lampe
+        - light.esszimmer_lampe
+      state_action:
+        action: call-service
+        service: floorplan.style_set
+        service_data:
+          element: "${entity.entity_id.replace('light.', 'light_overlay.')}"
+          style: |
+            >
+            try {
+              if (entity.state !== 'on') return 'display:none;';
+              var ib = entities['input_boolean.floorplan_white_mode'];
+              var whiteMode = !!(ib && ib.state === 'on');
+              var bright = (entity.attributes && typeof entity.attributes.brightness === 'number')
+                ? entity.attributes.brightness : 255;
+              var b = bright / 255;
+              if (b < 0.1) b = 0.1;
+              if (b > 1) b = 1;
+              if (whiteMode) {
+                return 'display:block; filter: sepia(28%) saturate(120%) hue-rotate(-8deg) brightness(' + b + ') contrast(105%);';
+              }
+              var hue = 0, sat = 0;
+              if (entity.attributes && entity.attributes.hs_color) {
+                hue = entity.attributes.hs_color[0] || 0;
+                sat = entity.attributes.hs_color[1] || 0;
+              } else if (entity.attributes && entity.attributes.rgb_color) {
+                sat = 100;
+              }
+              if (sat < 10) {
+                return 'display:block; filter: brightness(' + b + ');';
+              }
+              return 'display:block; filter: sepia(100%) hue-rotate(' + (hue - 55) + 'deg) saturate(' + (sat * 2) + '%) brightness(' + b + ');';
+            } catch (e) {
+              return '';
+            }
+
+    # Separater Block für Switch (Badezimmer) - NUR WEISSES LICHT
+    - entities:
+        - switch.badezimmerlampe
+      state_action:
+        action: call-service
+        service: floorplan.style_set
+        service_data:
+          element: "light_overlay.badezimmer_lampe"
+          style: |
+            >
+            console.log('=== BADEZIMMER DEBUG ===');
+            console.log('Entity ID:', entity.entity_id);
+            console.log('Entity State:', entity.state);
+            console.log('Element soll sein: light_overlay.badezimmer_lampe');
+            try {
+              if (entity.state !== 'on') {
+                console.log('Badezimmer ist AUS - return display:none');
+                return 'display:none;';
+              }
+              console.log('Badezimmer ist AN - zeige weißes Licht');
+              // Nur weißes Licht ohne Farbe/Helligkeit (Switch = immer 100%)
+              return 'display:block; opacity: 1;';
+            } catch (e) {
+              console.error('FEHLER im Badezimmer-Block:', e);
+              return '';
+            }
+
+    # 3) Sofort-Update bei Moduswechsel
+    - entity: input_boolean.floorplan_white_mode
+      state_action:
+        action: call-service
+        service: floorplan.execute
+        service_data:
+          refresh_white_overlay: |
+            >
+            console.log('=== REFRESH WHITE OVERLAY GESTARTET ===');
+            try {
+              var ib = entities['input_boolean.floorplan_white_mode'];
+              var whiteMode = !!(ib && ib.state === 'on');
+              console.log('White Mode:', whiteMode);
+              
+              var LIGHTS = [
+                'light.arbeitszimmerlampe',
+                'light.schlafzimmerlampe',
+                'light.wohnzimmer_lampe',
+                'light.kuechenlampe',
+                'light.flur_lampe',
+                'light.esszimmer_lampe'
+              ];
+              
+              var SWITCHES = [
+                'switch.badezimmerlampe'
+              ];
+              
+              function styleForLight(ent){
+                if (!ent || ent.state !== 'on') return 'display:none;';
+                var bright = (ent.attributes && typeof ent.attributes.brightness === 'number') ? ent.attributes.brightness : 255;
+                var b = bright / 255; 
+                if (b < 0.1) b = 0.1; 
+                if (b > 1) b = 1;
+                if (whiteMode) {
+                  return 'display:block; filter: sepia(28%) saturate(120%) hue-rotate(-8deg) brightness(' + b + ') contrast(105%);';
+                }
+                var hue = 0, sat = 0;
+                if (ent.attributes && ent.attributes.hs_color) { 
+                  hue = ent.attributes.hs_color[0] || 0; 
+                  sat = ent.attributes.hs_color[1] || 0; 
+                } else if (ent.attributes && ent.attributes.rgb_color) { 
+                  sat = 100; 
+                }
+                if (sat < 10) return 'display:block; filter: brightness(' + b + ');';
+                return 'display:block; filter: sepia(100%) hue-rotate(' + (hue - 55) + 'deg) saturate(' + (sat * 2) + '%) brightness(' + b + ');';
+              }
+              
+              function styleForSwitch(ent){
+                console.log('styleForSwitch aufgerufen für:', ent ? ent.entity_id : 'undefined');
+                console.log('Switch State:', ent ? ent.state : 'undefined');
+                if (!ent || ent.state !== 'on') {
+                  console.log('Switch ist AUS');
+                  return 'display:none;';
+                }
+                console.log('Switch ist AN - return weißes Licht');
+                return 'display:block; opacity: 1;';
+              }
+              
+              LIGHTS.forEach(function(lightId){
+                var overlayId = 'light_overlay.' + lightId.substring('light.'.length);
+                var el = svg.getElementById(overlayId);
+                if (!el) return;
+                var ent = entities[lightId];
+                var style = styleForLight(ent);
+                action({
+                  action: 'call-service',
+                  service: 'floorplan.style_set',
+                  service_data: { element: el, style: style }
+                });
+              });
+              
+              console.log('=== SWITCHES LOOP START ===');
+              SWITCHES.forEach(function(switchId){
+                console.log('Verarbeite Switch:', switchId);
+                var overlayId = 'light_overlay.badezimmer_lampe';
+                console.log('Suche SVG Element mit ID:', overlayId);
+                var el = svg.getElementById(overlayId);
+                console.log('Element gefunden?', !!el);
+                if (!el) {
+                  console.error('FEHLER: Element nicht gefunden:', overlayId);
+                  return;
+                }
+                var ent = entities[switchId];
+                console.log('Entity:', ent ? ent.entity_id : 'undefined', 'State:', ent ? ent.state : 'undefined');
+                var style = styleForSwitch(ent);
+                console.log('Style für Badezimmer:', style);
+                action({
+                  action: 'call-service',
+                  service: 'floorplan.style_set',
+                  service_data: { element: el, style: style }
+                });
+                console.log('Action ausgeführt für Badezimmer');
+              });
+              console.log('=== SWITCHES LOOP ENDE ===');
+            } catch (e) { 
+              console.error('FEHLER in refresh_white_overlay:', e); 
+            }

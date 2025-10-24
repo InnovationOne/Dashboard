@@ -1,0 +1,71 @@
+type: custom:calendar-card-pro
+tap_action: { action: none }
+style:
+  transform: translate(0, 0)
+  top: 15px
+  right: 12px
+  width: 360px
+  height: 232px
+  z-index: 2
+
+card_mod:
+  style: |
+    ha-card {
+      background: rgba(255,255,255,0.13);
+      border-radius: 24px;
+      box-shadow: 0 10px 24px rgba(30,32,36,0.41);
+      border: 1px solid rgba(255,255,255,0.24);
+      backdrop-filter: blur(22px) saturate(170%);
+      color: #f5f6fa;
+
+      overflow: hidden !important;
+      padding: 16px 6px !important;
+      pointer-events: none !important;
+      user-select: none !important;
+      -webkit-user-select: none !important;
+    }
+    
+    /* Alle Klick-Events komplett deaktivieren */
+    ha-card * {
+      pointer-events: none !important;
+      cursor: default !important;
+    }
+    
+    /* Sicherstellen dass auch verschachtelte Elemente nicht klickbar sind */
+    ha-card .calendar-event,
+    ha-card .calendar-day,
+    ha-card [role="button"],
+    ha-card button {
+      pointer-events: none !important;
+    }
+
+    ha-card *,
+    ha-card *::before,
+    ha-card *::after {
+      pointer-events: none !important;
+      cursor: default !important;
+    }
+
+entities:
+  - calendar.familie
+  - calendar.feiertage_in_deutschland
+  - calendar.gamermaster2115_gmail_com
+  - calendar.geburtstage
+
+days_to_show: 7
+compact_days_to_show: 3
+compact_events_to_show: 6
+show_empty_days: false
+split_multiday_events: true
+filter_duplicates: true
+accent_color: "#0A84FF"
+background_color: "transparent"
+language: de
+
+title_font_size: '14px'
+weekday_font_size: '10px'
+day_font_size: '16px'
+month_font_size: '10px'
+event_font_size: '14px'
+time_font_size: '12px'
+location_font_size: '12px'

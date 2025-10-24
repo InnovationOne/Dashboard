@@ -1,0 +1,30 @@
+type: custom:button-card
+style:
+  left: 50%
+  top: 730px
+  width: 120px
+  transform: translateX(10px)
+  z-index: 2
+entity: script.lights_rainbow_30s
+name: Sexy Time
+icon: mdi:heart-pulse
+show_label: true
+tap_action:
+  action: call-service
+  service: script.lights_rainbow_30s
+styles:
+  card:
+    - background: rgba(255, 255, 255, 0.12)
+    - border-radius: 20px
+    - box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25)
+    - backdrop-filter: blur(20px) saturate(170%)
+    - border: 1px solid rgba(255, 255, 255, 0.25)
+    - padding: 12px
+  name:
+    - color: '#f2f2f7'
+    - font-weight: bold
+    - font-size: 14px
+  icon:
+    - color: '#f2f2f7'
+    - width: 36px
+    - height: 36px

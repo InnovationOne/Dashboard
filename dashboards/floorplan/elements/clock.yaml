@@ -1,0 +1,42 @@
+type: custom:button-card
+entity: sensor.time
+tap_action: { action: none }
+style:
+  left: 50%
+  top: 12px
+  transform: translateX(-50%)
+  width: 380px
+  z-index: 2
+name: >
+  [[[
+    const d = new Date();
+    return d.toLocaleDateString(navigator.language, { weekday:'long', day:'2-digit', month:'2-digit' });
+  ]]]
+show_icon: false
+show_state: true
+layout: vertical
+
+styles:
+  card:
+    - background: rgba(255,255,255,0.13);
+    - border-radius: 24px;
+    - box-shadow: 0 10px 24px rgba(30,32,36,0.41);
+    - border: 1px solid rgba(255,255,255,0.24);
+    - backdrop-filter: blur(22px) saturate(170%);
+    - color: #f5f6fa;
+    - padding: 6px 10px
+    - text-align: center
+  grid:
+    - grid-gap: 0px
+    - grid-template-areas: '"n" "s"'
+    - grid-template-rows: min-content min-content
+  name:
+    - font-size: 16px
+    - margin: 0
+    - color: '#EDEFF2'
+    - letter-spacing: 5.5px
+  state:
+    - font-size: 80px
+    - line-height: 1
+    - margin: 0
+    - color: '#EDEFF2'

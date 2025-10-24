@@ -1,0 +1,32 @@
+type: custom:button-card
+entity: input_button.schlafen_modus
+name: Schlafen-Modus
+tap_action:
+  action: call-service
+  service: input_button.press
+  service_data:
+    entity_id: input_button.schlafen_modus
+show_state: false
+icon: mdi:power-sleep
+styles:
+  card:
+    - background: rgba(255, 255, 255, 0.12)
+    - border-radius: 20px
+    - box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25)
+    - backdrop-filter: blur(20px) saturate(170%)
+    - border: 1px solid rgba(255, 255, 255, 0.25)
+    - padding: 12px
+  name:
+    - color: '#f2f2f7'
+    - font-weight: bold
+    - font-size: 14px
+  icon:
+    - color: '#f2f2f7'
+    - width: 36px
+    - height: 36px
+style:
+  left: 50%
+  top: 730px
+  width: 120px
+  transform: translateX(430px)
+  z-index: 2

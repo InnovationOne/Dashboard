@@ -1,0 +1,832 @@
+- id: '1760192845949'
+  alias: Licht Wohnzimmer + Küche + Esszimmer - Smart Anwesenheit (mit TV)
+  description: 'Wie Küche: Bewegung/Dunkelheit -> an mit adaptiver Helligkeit, keine
+    Bewegung -> aus. Zusatz: Wenn Jellyfin spielt: alle 3 Bereiche aus und blockiert.
+    Bei Pause: alle 3 Bereiche an (adaptiv).
+
+    '
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_wohnzimmer_occupancy
+    to: 'on'
+    id: bewegung
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_wohnzimmer_occupancy
+    to: 'off'
+    id: keine_bewegung
+    trigger: state
+  - entity_id: sensor.anwesenheitssensor_wohnzimmer_beleuchtungsstarke
+    below: 0.5
+    id: dunkel
+    trigger: numeric_state
+  - entity_id: sun.sun
+    attribute: elevation
+    below: 30
+    id: sonne_tief
+    trigger: numeric_state
+  - entity_id: media_player.lg_webos_tv_oled55b7d_z
+    to: playing
+    id: tv_playing
+    trigger: state
+  - entity_id: media_player.lg_webos_tv_oled55b7d_z
+    to: paused
+    id: tv_paused
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: tv_playing
+        - condition: state
+          entity_id: media_player.lg_webos_tv_oled55b7d_z
+          state: playing
+      sequence:
+      - target:
+          entity_id:
+          - light.wohnzimmer_lampe
+          - light.esszimmer_lampe
+          - light.kuechenlampe
+        action: light.turn_off
+    - conditions:
+      - condition: trigger
+        id: tv_paused
+      sequence:
+      - target:
+          entity_id:
+          - light.wohnzimmer_lampe
+          - light.esszimmer_lampe
+          - light.kuechenlampe
+        data:
+          brightness_pct: '{% set hour = now().hour %} {% if hour < 5 %} 5 {% elif
+            hour < 7 %} 10 {% elif hour < 10 %} 15 {% elif hour < 16 %} 45 {% elif
+            hour < 20 %} 65 {% elif hour < 22 %} 45 {% else %} 15 {% endif %}
+
+            '
+        action: light.turn_on
+    - conditions:
+      - condition: trigger
+        id: keine_bewegung
+      sequence:
+      - target:
+          entity_id:
+          - light.wohnzimmer_lampe
+          - light.esszimmer_lampe
+          - light.kuechenlampe
+        action: light.turn_off
+    - conditions:
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: media_player.lg_webos_tv_oled55b7d_z
+          state: playing
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: bewegung
+        - condition: and
+          conditions:
+          - condition: state
+            entity_id: binary_sensor.anwesenheitssensor_wohnzimmer_occupancy
+            state: 'on'
+          - condition: or
+            conditions:
+            - condition: trigger
+              id: dunkel
+            - condition: trigger
+              id: sonne_tief
+      - condition: or
+        conditions:
+        - condition: numeric_state
+          entity_id: sensor.anwesenheitssensor_wohnzimmer_beleuchtungsstarke
+          below: 0.5
+        - condition: and
+          conditions:
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: elevation
+            below: 30
+          - condition: state
+            entity_id: weather.cottbus
+            state:
+            - cloudy
+            - fog
+            - rainy
+            - pouring
+            - lightning-rainy
+            - snowy
+            - snowy-rainy
+      sequence:
+      - target:
+          entity_id:
+          - light.wohnzimmer_lampe
+          - light.esszimmer_lampe
+          - light.kuechenlampe
+        data:
+          brightness_pct: '{% set hour = now().hour %} {% if hour < 5 %} 5 {% elif
+            hour < 7 %} 10 {% elif hour < 10 %} 15 {% elif hour < 16 %} 45 {% elif
+            hour < 20 %} 65 {% elif hour < 22 %} 45 {% else %} 15 {% endif %}
+
+            '
+        action: light.turn_on
+  mode: restart
+- id: '1760193695210'
+  alias: Licht Schlafzimmer - Smart Anwesenheit + Schlaf-/Lesen-Modus + Wecker
+  description: 'Küche-Logik im Schlafzimmer mit Schlaf-Block bis frühestem Handy-Wecker
+    (nur wenn Person zuhause) oder 05:00 Fallback. Lesen-Modus setzt 10% und bleibt
+    aktiv bis aus oder Schlaf-Modus aktiv.
+
+    '
+  triggers:
+  - id: bewegung
+    entity_id: binary_sensor.anwesenheitssenson_schlafzimmer_occupancy
+    to: 'on'
+    trigger: state
+  - id: keine_bewegung
+    entity_id: binary_sensor.anwesenheitssenson_schlafzimmer_occupancy
+    to: 'off'
+    trigger: state
+  - id: dunkel_lux
+    entity_id: sensor.anwesenheitssenson_schlafzimmer_beleuchtungsstarke
+    below: 0.5
+    trigger: numeric_state
+  - id: sonne_tief
+    entity_id: sun.sun
+    attribute: elevation
+    below: 30
+    trigger: numeric_state
+  - id: schlechtes_wetter
+    entity_id: weather.cottbus
+    to:
+    - cloudy
+    - fog
+    - rainy
+    - pouring
+    - lightning-rainy
+    - snowy
+    - snowy-rainy
+    trigger: state
+  - id: schlafen_on
+    entity_id: input_boolean.schlafen_modus
+    to: 'on'
+    trigger: state
+  - id: lesen_on
+    entity_id: input_boolean.lesen_modus
+    to: 'on'
+    trigger: state
+  - id: lesen_off
+    entity_id: input_boolean.lesen_modus
+    to: 'off'
+    trigger: state
+  - id: wecker_emily
+    value_template: "{% set t = states('sensor.emilys_handy_next_alarm') %} {{ t not
+      in ['unknown','unavailable','']\n   and is_state('person.emily','home')\n   and
+      (as_datetime(t)|as_local).strftime('%Y-%m-%d %H:%M') == now().strftime('%Y-%m-%d
+      %H:%M') }}\n"
+    trigger: template
+  - id: wecker_michael
+    value_template: "{% set t = states('sensor.michaels_handy_next_alarm') %} {{ t
+      not in ['unknown','unavailable','']\n   and is_state('person.michael','home')\n
+      \  and (as_datetime(t)|as_local).strftime('%Y-%m-%d %H:%M') == now().strftime('%Y-%m-%d
+      %H:%M') }}\n"
+    trigger: template
+  - id: fallback_5
+    at: 05:00:00
+    trigger: time
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: schlafen_on
+      sequence:
+      - target:
+          entity_id: input_boolean.lesen_modus
+        action: input_boolean.turn_off
+      - target:
+          entity_id: light.schlafzimmerlampe
+        action: light.turn_off
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: wecker_emily
+        - condition: trigger
+          id: wecker_michael
+      - condition: template
+        value_template: '{{ sleep_block_active }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.schlafen_modus
+        action: input_boolean.turn_off
+      - target:
+          entity_id: light.schlafzimmerlampe
+        data:
+          brightness_pct: '{{ adaptive_brightness_pct }}'
+        action: light.turn_on
+    - conditions:
+      - condition: trigger
+        id: fallback_5
+      - condition: state
+        entity_id: input_boolean.schlafen_modus
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: input_boolean.schlafen_modus
+        action: input_boolean.turn_off
+    - conditions:
+      - condition: trigger
+        id: lesen_on
+      sequence:
+      - target:
+          entity_id: light.schlafzimmerlampe
+        data:
+          brightness_pct: 10
+        action: light.turn_on
+    - conditions:
+      - condition: trigger
+        id: keine_bewegung
+      - condition: template
+        value_template: '{{ not sleep_block_active }}'
+      - condition: state
+        entity_id: input_boolean.lesen_modus
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: light.schlafzimmerlampe
+        action: light.turn_off
+    - conditions:
+      - condition: template
+        value_template: '{{ not sleep_block_active }}'
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: bewegung
+        - condition: and
+          conditions:
+          - condition: state
+            entity_id: binary_sensor.anwesenheitssenson_schlafzimmer_occupancy
+            state: 'on'
+          - condition: or
+            conditions:
+            - condition: trigger
+              id: dunkel_lux
+            - condition: trigger
+              id: sonne_tief
+            - condition: trigger
+              id: schlechtes_wetter
+      - condition: template
+        value_template: '{{ darkness_ok }}'
+      sequence:
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: input_boolean.lesen_modus
+            state: 'on'
+          sequence:
+          - target:
+              entity_id: light.schlafzimmerlampe
+            action: light.turn_on
+        default:
+        - target:
+            entity_id: light.schlafzimmerlampe
+          data:
+            brightness_pct: '{{ adaptive_brightness_pct }}'
+          action: light.turn_on
+  mode: restart
+  variables:
+    adaptive_brightness_pct: '{% set h = now().hour %} {% if h < 5 %} 5 {% elif h
+      < 7 %} 10 {% elif h < 10 %} 15 {% elif h < 16 %} 45 {% elif h < 20 %} 65 {%
+      elif h < 22 %} 45 {% else %} 15 {% endif %}
+
+      '
+    darkness_ok: "{{ states('sensor.anwesenheitssenson_schlafzimmer_beleuchtungsstarke')|float(999)
+      < 0.5\n   or ( state_attr('sun.sun','elevation')|float(90) < 30\n        and
+      states('weather.cottbus') in [\n          'cloudy','fog','rainy','pouring','lightning-rainy','snowy','snowy-rainy'\n
+      \       ]) }}\n"
+    earliest_alarm: '{% set e = states(''sensor.emilys_handy_next_alarm'') %} {% set
+      m = states(''sensor.michaels_handy_next_alarm'') %} {% set e_ok = e not in [''unknown'',''unavailable'','''']
+      and is_state(''person.emily'',''home'') %} {% set m_ok = m not in [''unknown'',''unavailable'','''']
+      and is_state(''person.michael'',''home'') %} {% set e_dt = as_datetime(e) if
+      e_ok else none %} {% set m_dt = as_datetime(m) if m_ok else none %} {% set lst
+      = [e_dt, m_dt] | select(''ne'', none) | list %} {{ (lst | min) if lst | length
+      > 0 else none }}
+
+      '
+    fallback_5am: '{% set n = now() %} {% set today5 = n.replace(hour=5, minute=0,
+      second=0, microsecond=0) %} {{ today5 if n < today5 else (today5 + timedelta(days=1))
+      }}
+
+      '
+    block_end: '{{ earliest_alarm if earliest_alarm is not none else fallback_5am
+      }}
+
+      '
+    sleep_block_active: '{{ is_state(''input_boolean.schlafen_modus'',''on'') and
+      now() < block_end }}
+
+      '
+- id: '1760193798167'
+  alias: Licht Flur - Smart Anwesenheit
+  description: Licht bei Bewegung wenn dunkel (Lux) oder schlechtes Wetter.  Adaptive
+    Helligkeit nach Uhrzeit.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_flur_occupancy
+    to: 'on'
+    id: bewegung
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_flur_occupancy
+    to: 'off'
+    id: keine_bewegung
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: keine_bewegung
+      sequence:
+      - target:
+          entity_id: light.flur_lampe
+        action: light.turn_off
+    - conditions:
+      - condition: trigger
+        id: bewegung
+      - condition: state
+        entity_id: binary_sensor.anwesenheitssensor_flur_occupancy
+        state: 'on'
+      - condition: or
+        conditions:
+        - condition: numeric_state
+          entity_id: sensor.anwesenheitssensor_flur_beleuchtungsstarke
+          below: 0.5
+        - condition: and
+          conditions:
+          - condition: state
+            entity_id: weather.cottbus
+            state:
+            - cloudy
+            - fog
+            - rainy
+            - pouring
+            - lightning-rainy
+            - snowy
+            - snowy-rainy
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: elevation
+            below: 30
+      sequence:
+      - target:
+          entity_id: light.flur_lampe
+        data:
+          brightness_pct: "{% set hour = now().hour %} {% if hour >= 0 and hour <
+            5 %}\n  5\n{% elif hour >= 5 and hour < 7 %}\n  10\n{% elif hour >= 7
+            and hour < 10 %}\n  15\n{% elif hour >= 10 and hour < 16 %}\n  45\n{%
+            elif hour >= 16 and hour < 20 %}\n  65\n{% elif hour >= 20 and hour <
+            22 %}\n  45\n{% elif hour >= 22 and hour < 24 %}\n  15\n{% endif %}\n"
+        action: light.turn_on
+  mode: restart
+- id: '1760193979831'
+  alias: Licht Esszimmer + Küche - Smart Anwesenheit
+  description: Licht bei Bewegung oder Dunkelheit, adaptive Helligkeit nach Uhrzeit.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_esszimmer_occupancy
+    to: 'on'
+    id: bewegung
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_esszimmer_occupancy
+    to: 'off'
+    id: keine_bewegung
+    trigger: state
+  - entity_id: sensor.anwesenheitssensor_esszimmer_beleuchtungsstarke
+    below: 0.5
+    id: dunkel
+    trigger: numeric_state
+  - entity_id: weather.cottbus
+    to:
+    - cloudy
+    - fog
+    - rainy
+    - pouring
+    - lightning-rainy
+    - snowy
+    - snowy-rainy
+    id: schlechtes_wetter
+    trigger: state
+  - entity_id: sun.sun
+    attribute: elevation
+    below: 30
+    id: sonne_tief
+    trigger: numeric_state
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: keine_bewegung
+      sequence:
+      - target:
+          entity_id:
+          - light.esszimmer_lampe
+          - light.kuechenlampe
+        action: light.turn_off
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: bewegung
+        - condition: and
+          conditions:
+          - condition: state
+            entity_id: binary_sensor.anwesenheitssensor_esszimmer_occupancy
+            state: 'on'
+          - condition: or
+            conditions:
+            - condition: trigger
+              id: dunkel
+            - condition: trigger
+              id: schlechtes_wetter
+            - condition: trigger
+              id: sonne_tief
+      - condition: or
+        conditions:
+        - condition: numeric_state
+          entity_id: sensor.anwesenheitssensor_esszimmer_beleuchtungsstarke
+          below: 0.5
+        - condition: and
+          conditions:
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: elevation
+            below: 30
+          - condition: state
+            entity_id: weather.cottbus
+            state:
+            - cloudy
+            - fog
+            - rainy
+            - pouring
+            - lightning-rainy
+            - snowy
+            - snowy-rainy
+      sequence:
+      - target:
+          entity_id:
+          - light.esszimmer_lampe
+          - light.kuechenlampe
+        data:
+          brightness_pct: '{% set hour = now().hour %}
+
+            {% if hour < 5 %} 5
+
+            {% elif hour < 7 %} 10
+
+            {% elif hour < 10 %} 15
+
+            {% elif hour < 16 %} 45
+
+            {% elif hour < 20 %} 65
+
+            {% elif hour < 22 %} 45
+
+            {% else %} 15
+
+            {% endif %}
+
+            '
+        action: light.turn_on
+  mode: restart
+- id: '1760277687280'
+  alias: Licht Arbeitszimmer - Smart Anwesenheit
+  description: Licht bei Bewegung oder Dunkelheit, adaptive Helligkeit nach Uhrzeit.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_arbeitszimmer_occupancy
+    to: 'on'
+    id: bewegung
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_arbeitszimmer_occupancy
+    to: 'off'
+    id: keine_bewegung
+    trigger: state
+  - entity_id: sensor.anwesenheitssensor_arbeitszimmer_beleuchtungsstarke
+    below: 0.5
+    id: dunkel
+    trigger: numeric_state
+  - entity_id: weather.cottbus
+    to:
+    - cloudy
+    - fog
+    - rainy
+    - pouring
+    - lightning-rainy
+    - snowy
+    - snowy-rainy
+    id: schlechtes_wetter
+    trigger: state
+  - entity_id: sun.sun
+    attribute: elevation
+    below: 30
+    id: sonne_tief
+    trigger: numeric_state
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: keine_bewegung
+      sequence:
+      - target:
+          entity_id: light.arbeitszimmer_lampe
+        action: light.turn_off
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: bewegung
+        - condition: and
+          conditions:
+          - condition: state
+            entity_id: binary_sensor.anwesenheitssensor_arbeitszimmer_occupancy
+            state: 'on'
+          - condition: or
+            conditions:
+            - condition: trigger
+              id: dunkel
+            - condition: trigger
+              id: schlechtes_wetter
+            - condition: trigger
+              id: sonne_tief
+      - condition: or
+        conditions:
+        - condition: numeric_state
+          entity_id: sensor.anwesenheitssensor_arbeitszimmer_beleuchtungsstarke
+          below: 0.5
+        - condition: and
+          conditions:
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: elevation
+            below: 30
+          - condition: state
+            entity_id: weather.cottbus
+            state:
+            - cloudy
+            - fog
+            - rainy
+            - pouring
+            - lightning-rainy
+            - snowy
+            - snowy-rainy
+      sequence:
+      - target:
+          entity_id: light.arbeitszimmer_lampe
+        data:
+          brightness_pct: '{% set hour = now().hour %}
+
+            {% if hour < 5 %} 5
+
+            {% elif hour < 7 %} 10
+
+            {% elif hour < 10 %} 15
+
+            {% elif hour < 16 %} 45
+
+            {% elif hour < 20 %} 65
+
+            {% elif hour < 22 %} 45
+
+            {% else %} 15
+
+            {% endif %}
+
+            '
+        action: light.turn_on
+  mode: restart
+- id: licht_badezimmer_bewegung
+  alias: Licht Badezimmer - Bewegung
+  description: Schaltet Licht bei Bewegung an/aus, wenn nicht geduscht wird.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'on'
+    id: bewegung_an
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'off'
+    id: bewegung_aus
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: input_boolean.duschen_modus
+    state: 'off'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: bewegung_an
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_on
+    - conditions:
+      - condition: trigger
+        id: bewegung_aus
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_off
+  mode: restart
+- id: licht_badezimmer_bewegung
+  alias: Licht Badezimmer - Bewegung
+  description: Schaltet Licht bei Bewegung an/aus, wenn nicht geduscht wird.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'on'
+    id: bewegung_an
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'off'
+    id: bewegung_aus
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: input_boolean.duschen_modus
+    state: 'off'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: bewegung_an
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_on
+    - conditions:
+      - condition: trigger
+        id: bewegung_aus
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_off
+  mode: restart
+- id: licht_badezimmer_bewegung
+  alias: Licht Badezimmer - Bewegung
+  description: Schaltet Licht bei Bewegung an/aus, wenn nicht geduscht wird.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'on'
+    id: bewegung_an
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'off'
+    id: bewegung_aus
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: input_boolean.duschen_modus
+    state: 'off'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: bewegung_an
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_on
+    - conditions:
+      - condition: trigger
+        id: bewegung_aus
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_off
+  mode: restart
+- id: licht_badezimmer_bewegung
+  alias: Licht Badezimmer - Bewegung
+  description: Schaltet Licht bei Bewegung an/aus, wenn nicht geduscht wird.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'on'
+    id: bewegung_an
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'off'
+    id: bewegung_aus
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: input_boolean.duschen_modus
+    state: 'off'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: bewegung_an
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_on
+    - conditions:
+      - condition: trigger
+        id: bewegung_aus
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_off
+  mode: restart
+- id: licht_badezimmer_bewegung
+  alias: Licht Badezimmer - Bewegung
+  description: Schaltet Licht bei Bewegung an/aus, wenn nicht geduscht wird.
+  triggers:
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'on'
+    id: bewegung_an
+    trigger: state
+  - entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'off'
+    id: bewegung_aus
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: input_boolean.duschen_modus
+    state: 'off'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: bewegung_an
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_on
+    - conditions:
+      - condition: trigger
+        id: bewegung_aus
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_off
+  mode: restart
+- id: '1761235626484'
+  alias: Licht Badezimmer - Präsenz mit Duschmodus (fix)
+  description: 'Licht bei Bewegung AN, bei keiner Bewegung SOFORT AUS. Duschmodus
+    hält Licht 5 Minuten an und prüft danach auf Präsenz.
+
+    '
+  triggers:
+  - id: bewegung
+    entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'on'
+    trigger: state
+  - id: keine_bewegung
+    entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+    to: 'off'
+    trigger: state
+  - id: duschen_start
+    entity_id: input_boolean.duschen_modus
+    to: 'on'
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: duschen_start
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_on
+      - delay: 00:05:00
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: binary_sensor.anwesenheitssensor_badezimmer_occupancy
+            state: 'on'
+          sequence: []
+        default:
+        - target:
+            entity_id: switch.badezimmerlampe
+          action: switch.turn_off
+      - target:
+          entity_id: input_boolean.duschen_modus
+        action: input_boolean.turn_off
+    - conditions:
+      - condition: trigger
+        id: keine_bewegung
+      - condition: state
+        entity_id: input_boolean.duschen_modus
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_off
+    - conditions:
+      - condition: trigger
+        id: bewegung
+      - condition: state
+        entity_id: input_boolean.duschen_modus
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: switch.badezimmerlampe
+        action: switch.turn_on
+  mode: single

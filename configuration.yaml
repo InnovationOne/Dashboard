@@ -1,0 +1,299 @@
+logger:
+  default: warning
+  logs:
+    homeassistant.components.rest: debug
+    aiohttp.client: debug
+
+default_config:
+
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+lovelace:
+  dashboards:
+    floorplan-dashboard:
+      mode: yaml
+      title: Floorplan
+      icon: mdi:floor-plan
+      show_in_sidebar: true
+      filename: dashboards/floorplan/config.yaml
+
+# --- Cottbus / VBB: REST-Sensoren (Rohdaten als JSON-String im State) ---
+rest:
+  # STOP-ID Lookup (alle 6h)
+  - resource: "https://v6.vbb.transport.rest/locations?poi=false&addresses=false&stops=true&results=1&query=Cottbus%2C%20Neu%20Schmellwitz%20Zuschka"
+    scan_interval: 21600
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: vbb_id_zuschka
+        value_template: >
+          {% set d = value|from_json(default=[]) %}
+          {{ d[0].id if d|length>0 else '' }}
+
+  - resource: "https://v6.vbb.transport.rest/locations?poi=false&addresses=false&stops=true&results=1&query=Cottbus%2C%20Hauptbahnhof"
+    scan_interval: 21600
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: vbb_id_hbf
+        value_template: >
+          {% set d = value|from_json(default=[]) %}
+          {{ d[0].id if d|length>0 else '' }}
+
+  - resource: "https://v6.vbb.transport.rest/locations?poi=false&addresses=false&stops=true&results=1&query=Cottbus%2C%20Guhrower%20Str.%2F%20Cottbus%20Center"
+    scan_interval: 21600
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: vbb_id_center
+        value_template: >
+          {% set d = value|from_json(default=[]) %}
+          {{ d[0].id if d|length>0 else '' }}
+
+  - resource: "https://v6.vbb.transport.rest/locations?poi=false&addresses=false&stops=true&results=1&query=Cottbus%2C%20Zimmerstr."
+    scan_interval: 21600
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: vbb_id_zimmerstr
+        value_template: >
+          {% set d = value|from_json(default=[]) %}
+          {{ d[0].id if d|length>0 else '' }}
+
+  # Abfahrten je Halt (immer ARRAY im State; 120s Poll, Timeout 30s)
+  - resource_template: >
+      {% set id = states('sensor.vbb_id_zuschka')|int(0) %}
+      {{ 'https://v6.vbb.transport.rest/stops/{}/departures?duration=180&results=150&language=de&tram=true&bus=true&pretty=false'.format(id) if id>0 else 'https://v6.vbb.transport.rest/locations?results=0' }}
+    scan_interval: 120
+    timeout: 30
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: neu_schmellwitz_zuschka_abfahrten_roh
+        value_template: >
+          {% if value_json is defined %}
+            {% if value_json.departures is defined %} {{ value_json.departures | tojson }}
+            {% elif value_json|is_list %}            {{ value_json | tojson }}
+            {% else %}                                []
+            {% endif %}
+          {% else %}                                  []
+          {% endif %}
+
+  - resource_template: >
+      {% set id = states('sensor.vbb_id_hbf')|int(0) %}
+      {{ 'https://v6.vbb.transport.rest/stops/{}/departures?duration=180&results=150&language=de&tram=true&bus=true&pretty=false'.format(id) if id>0 else 'https://v6.vbb.transport.rest/locations?results=0' }}
+    scan_interval: 120
+    timeout: 30
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: hauptbahnhof_abfahrten_roh
+        value_template: >
+          {% if value_json is defined %}
+            {% if value_json.departures is defined %} {{ value_json.departures | tojson }}
+            {% elif value_json|is_list %}            {{ value_json | tojson }}
+            {% else %}                                []
+            {% endif %}
+          {% else %}                                  []
+          {% endif %}
+
+  - resource_template: >
+      {% set id = states('sensor.vbb_id_center')|int(0) %}
+      {{ 'https://v6.vbb.transport.rest/stops/{}/departures?duration=180&results=150&language=de&tram=true&bus=true&pretty=false'.format(id) if id>0 else 'https://v6.vbb.transport.rest/locations?results=0' }}
+    scan_interval: 120
+    timeout: 30
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: guhrower_center_abfahrten_roh
+        value_template: >
+          {% if value_json is defined %}
+            {% if value_json.departures is defined %} {{ value_json.departures | tojson }}
+            {% elif value_json|is_list %}            {{ value_json | tojson }}
+            {% else %}                                []
+            {% endif %}
+          {% else %}                                  []
+          {% endif %}
+
+  - resource_template: >
+      {% set id = states('sensor.vbb_id_zimmerstr')|int(0) %}
+      {{ 'https://v6.vbb.transport.rest/stops/{}/departures?duration=180&results=150&language=de&tram=true&bus=true&pretty=false'.format(id) if id>0 else 'https://v6.vbb.transport.rest/locations?results=0' }}
+    scan_interval: 120
+    timeout: 30
+    headers: { accept: application/json, user-agent: HomeAssistant }
+    sensor:
+      - name: zimmerstr_abfahrten_roh
+        value_template: >
+          {% if value_json is defined %}
+            {% if value_json.departures is defined %} {{ value_json.departures | tojson }}
+            {% elif value_json|is_list %}            {{ value_json | tojson }}
+            {% else %}                                []
+            {% endif %}
+          {% else %}                                  []
+          {% endif %}
+
+template:
+  - trigger:
+      - platform: time_pattern
+        minutes: 1
+    sensor:
+      # Geparste Rohdaten
+      - name: Neu Schmellwitz Zuschka Abfahrten Geparst
+        state: "{{ now() }}"
+        icon: mdi:tram
+        attributes:
+          next: >
+            {% set s = states('sensor.neu_schmellwitz_zuschka_abfahrten_roh') %}
+            {% set raw = s if s not in ['unknown','unavailable','None'] else '[]' %}
+            {{ raw | from_json(default=[]) | tojson }}
+
+      - name: Hauptbahnhof Abfahrten Geparst
+        state: "{{ now() }}"
+        icon: mdi:train
+        attributes:
+          next: >
+            {% set s = states('sensor.hauptbahnhof_abfahrten_roh') %}
+            {% set raw = s if s not in ['unknown','unavailable','None'] else '[]' %}
+            {{ raw | from_json(default=[]) | tojson }}
+
+      - name: Guhrower/Cottbus Center Abfahrten Geparst
+        state: "{{ now() }}"
+        icon: mdi:bus
+        attributes:
+          next: >
+            {% set s = states('sensor.guhrower_center_abfahrten_roh') %}
+            {% set raw = s if s not in ['unknown','unavailable','None'] else '[]' %}
+            {{ raw | from_json(default=[]) | tojson }}
+
+      - name: Zimmerstr Abfahrten Geparst
+        state: "{{ now() }}"
+        icon: mdi:tram
+        attributes:
+          next: >
+            {% set s = states('sensor.zimmerstr_abfahrten_roh') %}
+            {% set raw = s if s not in ['unknown','unavailable','None'] else '[]' %}
+            {{ raw | from_json(default=[]) | tojson }}
+
+      # Gefilterte Routen - MIT FALLBACK
+      - name: Tram4 Zuschka to Hbf
+        state: "{{ now() }}"
+        icon: mdi:tram
+        attributes:
+          next: >
+            {% set lst = state_attr('sensor.neu_schmellwitz_zuschka_abfahrten_geparst','next') | default([]) %}
+            {% if lst is string %}
+              {% set lst = lst | from_json(default=[]) %}
+            {% endif %}
+            {% set out = lst | selectattr('line.product','equalto','tram') 
+                             | selectattr('line.name','equalto','4') 
+                             | selectattr('direction','match','(?i).*\b(hbf|hauptbahnhof)\b.*') 
+                             | list %}
+            {{ out | tojson }}
+
+      - name: Tram4 Hbf to Zuschka
+        state: "{{ now() }}"
+        icon: mdi:tram
+        attributes:
+          next: >
+            {% set lst = state_attr('sensor.hauptbahnhof_abfahrten_geparst','next') | default([]) %}
+            {% if lst is string %}
+              {% set lst = lst | from_json(default=[]) %}
+            {% endif %}
+            {% set out = lst | selectattr('line.product','equalto','tram') 
+                             | selectattr('line.name','equalto','4') 
+                             | selectattr('direction','match','(?i).*neu\s*schmellwitz.*zuschka.*') 
+                             | list %}
+            {{ out | tojson }}
+
+      - name: Bus19 Zuschka to Center
+        state: "{{ now() }}"
+        icon: mdi:bus
+        attributes:
+          next: >
+            {% set lst = state_attr('sensor.neu_schmellwitz_zuschka_abfahrten_geparst','next') | default([]) %}
+            {% if lst is string %}
+              {% set lst = lst | from_json(default=[]) %}
+            {% endif %}
+            {% set out = lst | selectattr('line.product','equalto','bus') 
+                             | selectattr('line.name','equalto','19') 
+                             | selectattr('direction','match','(?i).*guhrower.*(cottbus\s*center|center).*') 
+                             | list %}
+            {{ out | tojson }}
+
+      - name: Bus19 Center to Zuschka
+        state: "{{ now() }}"
+        icon: mdi:bus
+        attributes:
+          next: >
+            {% set lst = state_attr('sensor.guhrower_cottbus_center_abfahrten_geparst','next') | default([]) %}
+            {% if lst is string %}
+              {% set lst = lst | from_json(default=[]) %}
+            {% endif %}
+            {% set out = lst | selectattr('line.product','equalto','bus') 
+                             | selectattr('line.name','equalto','19') 
+                             | selectattr('direction','match','(?i).*neu\s*schmellwitz.*zuschka.*') 
+                             | list %}
+            {{ out | tojson }}
+
+      - name: Zimmerstr Tram4 to Zuschka
+        state: "{{ now() }}"
+        icon: mdi:tram
+        attributes:
+          next: >
+            {% set lst = state_attr('sensor.zimmerstr_abfahrten_geparst','next') | default([]) %}
+            {% if lst is string %}
+              {% set lst = lst | from_json(default=[]) %}
+            {% endif %}
+            {% set out = lst | selectattr('line.product','equalto','tram') 
+                             | selectattr('line.name','equalto','4') 
+                             | selectattr('direction','match','(?i).*neu\s*schmellwitz.*zuschka.*') 
+                             | list %}
+            {{ out | tojson }}
+
+  - sensor:
+      - name: system_updates_pending
+        state: "{{ expand(states.update) | selectattr('state','eq','on') | list | count }}"
+
+sensor:
+  - platform: time_date
+    display_options:
+      - 'time'
+      - 'date'
+
+input_boolean:
+  floorplan_labels:
+    name: Floorplan Labels anzeigen
+    initial: false
+    icon: mdi:format-text-variant
+  
+  floorplan_white_mode:
+    name: Floorplan Weißlicht-Modus
+    initial: false
+    icon: mdi:ceiling-light
+
+light:
+  - platform: group
+    name: Alle Lichter
+    entities:
+      - light.arbeitszimmerlampe
+      - light.schlafzimmerlampe
+      - light.wohnzimmer_lampe
+      - light.kuechenlampe
+      - light.flur_lampe
+      - light.esszimmer_lampe
+
+input_select:
+  calendar_rotation:
+    name: Kalender Rotation
+    options:
+      - Kalender
+      - Einkaufsliste
+      - Haushalt
+    initial: Kalender
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.16.4.3
+    - 172.16.4.1
+    - 192.168.178.57
+  ip_ban_enabled: true
+  login_attempts_threshold: 5

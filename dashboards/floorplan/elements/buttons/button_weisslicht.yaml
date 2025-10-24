@@ -1,0 +1,45 @@
+type: custom:button-card
+style:
+  left: 50%
+  top: 730px
+  width: 120px
+  transform: translateX(-130px)
+  z-index: 2
+entity: input_boolean.floorplan_white_mode
+name: Weißlicht
+tap_action:
+  action: call-service
+  service: input_boolean.toggle
+  service_data:
+    entity_id: input_boolean.floorplan_white_mode
+show_state: false
+state:
+  - value: 'on'
+    icon: mdi:lightbulb
+    name: Weißlicht
+    styles:
+      icon:
+        - color: '#f2f2f7'  # Warmes Weiß
+    
+  - value: 'off'
+    icon: mdi:palette
+    name: Farblicht
+    styles:
+      icon:
+        - color: '#f2f2f7'  # Lila für Buntes Licht
+styles:
+  card:
+    - background: rgba(255, 255, 255, 0.12)
+    - border-radius: 20px
+    - box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25)
+    - backdrop-filter: blur(20px) saturate(170%)
+    - border: 1px solid rgba(255, 255, 255, 0.25)
+    - padding: 12px
+  name:
+    - color: '#f2f2f7'
+    - font-weight: bold
+    - font-size: 14px
+  icon:
+    - width: 36px
+    - height: 36px
+    - transition: all 0.3s ease

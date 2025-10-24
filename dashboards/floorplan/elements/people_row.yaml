@@ -1,0 +1,59 @@
+# Horizontal-Stack in picture-elements (übliches Muster via hui-element)
+type: custom:hui-element
+tap_action: { action: none }
+card_type: horizontal-stack
+style:
+  left: "calc(50% - 480px + 910px)"
+  top: 250px                 # sitzt knapp unter deinem Plan
+  transform: translateX(-50%)
+  width: 270px               # gleich breit wie der Floorplan
+  z-index: 2
+cards:
+
+  # ---------- MICHAEL ----------
+  - type: custom:stack-in-card
+    mode: vertical
+    card_mod:
+      style: |
+        ha-card{
+          background: rgba(255,255,255,0.13);
+          border-radius: 12px;
+          box-shadow: 0 10px 12px rgba(30,32,36,0.41);
+          border: 1px solid rgba(255,255,255,0.24);
+          backdrop-filter: blur(22px) saturate(170%);
+          color: #f5f6fa;
+        }
+    cards:
+      # Person mit Standort statt "vor X Stunden"
+      - type: custom:mushroom-person-card
+        tap_action: { action: none }
+        entity: person.michael
+        icon_type: entity-picture
+        primary_info: name
+        secondary_info: state              # zeigt Zone/Ort direkt in der Zeile
+        fill_container: true
+        layout: horizontal
+
+
+  # ---------- EMILY ----------
+  - type: custom:stack-in-card
+    mode: vertical
+    card_mod:
+      style: |
+        ha-card{
+          background: rgba(255,255,255,0.13);
+          border-radius: 12px;
+          box-shadow: 0 10px 12px rgba(30,32,36,0.41);
+          border: 1px solid rgba(255,255,255,0.24);
+          backdrop-filter: blur(22px) saturate(170%);
+          color: #f5f6fa;
+        }
+    cards:
+      - type: custom:mushroom-person-card
+        tap_action: { action: none }
+        entity: person.emily
+        icon_type: entity-picture
+        primary_info: name
+        secondary_info: state              # zeigt Zone/Ort
+        fill_container: true
+        layout: horizontal

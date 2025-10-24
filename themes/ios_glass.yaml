@@ -1,0 +1,11 @@
+ios_glass_modern:
+  lovelace-background: 'transparent'
+
+  card-background-color: 'rgba(255, 255, 255, 0.12)'  # milchig-weiss, viel transparenter
+  ha-card-border-radius: 20px
+  ha-card-box-shadow: '0 8px 16px rgba(0, 0, 0, 0.2)'
+  ha-card-border: '1px solid rgba(255, 255, 255, 0.25)'
+  backdrop-filter: blur(20px) saturate(180%)
+
+  primary-text-color: '#f2f2f7'
+  text-primary-color: '#f2f2f7'
